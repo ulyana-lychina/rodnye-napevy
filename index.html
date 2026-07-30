@@ -198,7 +198,6 @@
     <span class="hint">Режим редактирования</span>
     <button type="button" id="addBtn">+ Добавить песню</button>
     <button type="button" class="secondary" id="seedBtn" style="display:none">Загрузить 95 песен в базу</button>
-    <button type="button" class="secondary" id="fillPerformerBtn">Всем: Наталья Егорова</button>
   </div>
 
   <div class="toolbar">
@@ -557,55 +556,6 @@ document.getElementById('seedBtn').onclick = async () => {
   $seedBtn.textContent = 'Загрузить 95 песен в базу';
 };
 
-
-document.getElementById('fillPerformerBtn').onclick = async () => {
-  if (!user) return toast('Нужен вход');
-  if (!confirm('Проставить исполнителя «Наталья Егорова» всем песням в базе?')) return;
-  const btn = document.getElementById('fillPerformerBtn');
-  btn.disabled = true;
-  btn.textContent = 'Обновление…';
-  try {
-    const snap = await db.collection('songs').get();
-    let batch = db.batch();
-    let n = 0;
-    let ops = 0;
-    snap.forEach(doc => {
-      batch.update(doc.ref, { performers: 'Наталья Егорова' });
-      ops++;
-      n++;
-      if (ops >= 400) {
-        // commit in chunks - use async carefully
-      }
-    });
-    // simple: one batch if <= 500
-    if (n <= 500) {
-      await batch.commit();
-    } else {
-      batch = db.batch();
-      ops = 0;
-      const docs = [];
-      snap.forEach(doc => docs.push(doc));
-      for (const doc of docs) {
-        batch.update(doc.ref, { performers: 'Наталья Егорова' });
-        ops++;
-        if (ops >= 400) {
-          await batch.commit();
-          batch = db.batch();
-          ops = 0;
-        }
-      }
-      if (ops > 0) await batch.commit();
-    }
-    toast('Исполнитель проставлен: ' + n + ' песен');
-    await loadSongs();
-    render();
-  } catch (e) {
-    console.error(e);
-    toast('Ошибка: ' + e.message);
-  }
-  btn.disabled = false;
-  btn.textContent = 'Всем: Наталья Егорова';
-};
 
 document.getElementById('addBtn').onclick = () => openEditor(null);
 
