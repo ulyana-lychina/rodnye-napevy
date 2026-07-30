@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="description" content="Библиотека репертуара ансамбля Родные напевы">
+<title>Родные напевы — репертуар</title>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<style>
+  :root {
+    --bg: #f6f3ee; --card: #fff; --ink: #1c1917; --muted: #78716c;
+    --accent: #9a3412; --accent-soft: #fed7aa; --line: #e7e5e4;
+    --tag: #f5f5f4; --ok: #166534; --ok-bg: #dcfce7; --no: #a8a29e;
+    --shadow: 0 1px 3px rgba(0,0,0,.06), 0 4px 12px rgba(0,0,0,.04);
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    background: var(--bg); color: var(--ink); line-height: 1.45; min-height: 100vh;
+  }
+  header {
+    background: linear-gradient(135deg, #9a3412 0%, #c2410c 55%, #ea580c 100%);
+    color: #fff; padding: 1.15rem 1rem 1.35rem; position: sticky; top: 0; z-index: 50;
+    box-shadow: 0 2px 12px rgba(154,52,18,.25);
+  }
+  header .wrap { max-width: 920px; margin: 0 auto; }
+  header .top-row { display: flex; justify-content: space-between; align-items: flex-start; gap: .75rem; }
+  header h1 { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.02em; }
+  header p { opacity: .85; font-size: .85rem; margin-top: .15rem; }
+  .auth-btn {
+    background: rgba(255,255,255,.2); border: 1px solid rgba(255,255,255,.45);
+    color: #fff; padding: .4rem .75rem; border-radius: 8px; font-size: .8rem;
+    cursor: pointer; white-space: nowrap;
+  }
+  .auth-btn:hover { background: rgba(255,255,255,.3); }
+  .auth-btn.out { background: rgba(0,0,0,.15); }
+  .search-box { margin-top: .85rem; position: relative; }
+  .search-box input {
+    width: 100%; padding: .72rem 1rem .72rem 2.55rem; border: none; border-radius: 12px;
+    font-size: 1rem; background: rgba(255,255,255,.96); color: var(--ink); outline: none;
+    box-shadow: var(--shadow);
+  }
+  .search-box input::placeholder { color: #a8a29e; }
+  .search-box .icon { position: absolute; left: .85rem; top: 50%; transform: translateY(-50%); opacity: .45; pointer-events: none; }
+  main { max-width: 920px; margin: 0 auto; padding: 1rem 1rem 5rem; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin-bottom: .75rem; }
+  .count { font-size: .9rem; color: var(--muted); margin-right: auto; }
+  .count strong { color: var(--ink); }
+  .sort-select, .extra-select {
+    padding: .38rem .65rem; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--card); font-size: .82rem; color: var(--ink);
+  }
+  .admin-bar {
+    display: none; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 12px;
+    padding: .65rem .85rem; margin-bottom: .85rem; font-size: .88rem;
+    align-items: center; gap: .6rem; flex-wrap: wrap;
+  }
+  .admin-bar.show { display: flex; }
+  .admin-bar button {
+    background: var(--accent); color: #fff; border: none; padding: .4rem .75rem;
+    border-radius: 8px; font-size: .82rem; cursor: pointer;
+  }
+  .admin-bar button.secondary { background: #fff; color: var(--accent); border: 1px solid #fdba74; }
+  .admin-bar .hint { color: #9a3412; flex: 1; min-width: 140px; }
+  .filters { display: flex; flex-wrap: wrap; gap: .38rem; margin-bottom: .9rem; }
+  .chip {
+    border: 1px solid var(--line); background: var(--card); color: var(--ink);
+    padding: .32rem .65rem; border-radius: 999px; font-size: .78rem; cursor: pointer;
+    transition: .15s; user-select: none; white-space: nowrap;
+  }
+  .chip:hover { border-color: #d6d3d1; }
+  .chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .chip .n { opacity: .55; font-size: .75em; margin-left: .12rem; }
+  .chip.active .n { opacity: .85; }
+  .more-filters-btn {
+    border: 1px dashed var(--line); background: transparent; color: var(--muted);
+    padding: .32rem .65rem; border-radius: 999px; font-size: .78rem; cursor: pointer;
+  }
+  .card {
+    background: var(--card); border-radius: var(--radius); padding: 1rem 1.1rem;
+    margin-bottom: .6rem; box-shadow: var(--shadow); border: 1px solid rgba(0,0,0,.03);
+    cursor: pointer; transition: .15s;
+  }
+  .card:hover { border-color: #fdba74; }
+  .card.open { border-color: #fb923c; }
+  .card-top { display: flex; justify-content: space-between; gap: .7rem; align-items: flex-start; }
+  .title { font-weight: 650; font-size: 1.02rem; letter-spacing: -0.01em; }
+  .key-badge {
+    flex-shrink: 0; background: var(--accent-soft); color: var(--accent);
+    font-weight: 700; font-size: .78rem; padding: .18rem .5rem; border-radius: 6px;
+  }
+  .meta { color: var(--muted); font-size: .86rem; margin-top: .22rem; }
+  .meta .sep { margin: 0 .28rem; opacity: .4; }
+  .quick-row { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .45rem; align-items: center; }
+  .pill { font-size: .72rem; padding: .12rem .45rem; border-radius: 6px; background: #f5f5f4; color: #57534e; }
+  .pill.freq-often { background: #dcfce7; color: #166534; }
+  .pill.freq-sometimes { background: #fef9c3; color: #854d0e; }
+  .pill.freq-rare { background: #ffedd5; color: #9a3412; }
+  .pill.freq-archive { background: #e7e5e4; color: #57534e; }
+  .tags-row { display: flex; flex-wrap: wrap; gap: .28rem; margin-top: .5rem; }
+  .tag { background: var(--tag); color: #57534e; font-size: .7rem; padding: .12rem .45rem; border-radius: 6px; }
+  .details { display: none; margin-top: .7rem; padding-top: .7rem; border-top: 1px solid var(--line); font-size: .9rem; }
+  .card.open .details { display: block; }
+  .details dl { display: grid; grid-template-columns: 140px 1fr; gap: .38rem .75rem; }
+  .details dt { color: var(--muted); }
+  .details dd { word-break: break-word; }
+  .details dd.dash { color: #a8a29e; }
+  .materials { display: flex; flex-wrap: wrap; gap: .4rem; }
+  .mat {
+    font-size: .75rem; padding: .25rem .55rem; border-radius: 8px;
+    border: 1px solid var(--line); color: var(--no); background: #fafaf9;
+  }
+  .mat.yes { background: var(--ok-bg); border-color: #bbf7d0; color: var(--ok); font-weight: 600; }
+  .note-box {
+    margin-top: .7rem; background: #fff7ed; border-left: 3px solid #fb923c;
+    padding: .5rem .7rem; border-radius: 0 8px 8px 0; font-size: .85rem; color: #9a3412;
+  }
+  .edit-actions { margin-top: .75rem; display: flex; gap: .5rem; flex-wrap: wrap; }
+  .edit-actions button {
+    background: var(--accent); color: #fff; border: none; padding: .45rem .85rem;
+    border-radius: 8px; font-size: .85rem; cursor: pointer;
+  }
+  .edit-actions button.secondary { background: #fff; color: var(--accent); border: 1px solid #fdba74; }
+  .edit-actions button.danger { background: #fff; color: #b91c1c; border: 1px solid #fca5a5; }
+  .empty { text-align: center; padding: 3rem 1rem; color: var(--muted); }
+  .empty .big { font-size: 2.5rem; margin-bottom: .5rem; }
+  footer { text-align: center; padding: 1.5rem; color: var(--muted); font-size: .8rem; }
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45);
+    z-index: 100; align-items: flex-end; justify-content: center; padding: 0;
+  }
+  .modal-overlay.show { display: flex; }
+  @media (min-width: 560px) {
+    .modal-overlay { align-items: center; padding: 1rem; }
+  }
+  .modal {
+    background: #fff; width: 100%; max-width: 520px; max-height: 92vh;
+    overflow-y: auto; border-radius: 16px 16px 0 0; padding: 1.25rem;
+  }
+  @media (min-width: 560px) { .modal { border-radius: 16px; } }
+  .modal h2 { font-size: 1.15rem; margin-bottom: 1rem; }
+  .modal label { display: block; font-size: .78rem; color: var(--muted); margin: .55rem 0 .2rem; }
+  .modal input, .modal select, .modal textarea {
+    width: 100%; padding: .55rem .7rem; border: 1px solid var(--line);
+    border-radius: 8px; font-size: .95rem; font-family: inherit;
+  }
+  .modal textarea { min-height: 70px; resize: vertical; }
+  .modal .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
+  .modal .checks { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .35rem; }
+  .modal .checks label {
+    display: flex; align-items: center; gap: .35rem; margin: 0;
+    font-size: .85rem; color: var(--ink); background: #f5f5f4;
+    padding: .35rem .6rem; border-radius: 8px; cursor: pointer;
+  }
+  .modal .checks input { width: auto; }
+  .modal-actions {
+    display: flex; gap: .5rem; margin-top: 1.1rem; flex-wrap: wrap;
+  }
+  .modal-actions button {
+    flex: 1; min-width: 100px; padding: .6rem; border-radius: 10px;
+    border: none; font-size: .95rem; cursor: pointer;
+  }
+  .modal-actions .save { background: var(--accent); color: #fff; }
+  .modal-actions .cancel { background: #f5f5f4; color: var(--ink); }
+  .login-error { color: #b91c1c; font-size: .85rem; margin-top: .5rem; display: none; }
+  .toast {
+    position: fixed; bottom: 1.25rem; left: 50%; transform: translateX(-50%);
+    background: #1c1917; color: #fff; padding: .65rem 1.1rem; border-radius: 999px;
+    font-size: .88rem; z-index: 200; display: none; box-shadow: var(--shadow);
+  }
+  .toast.show { display: block; }
+  .loading { text-align: center; padding: 2rem; color: var(--muted); }
+  @media (min-width: 640px) { header h1 { font-size: 1.5rem; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="top-row">
+      <div>
+        <h1>Родные напевы</h1>
+        <p>Библиотека репертуара</p>
+      </div>
+      <button type="button" class="auth-btn" id="authBtn">Войти</button>
+    </div>
+    <div class="search-box">
+      <span class="icon">🔍</span>
+      <input type="search" id="q" placeholder="Поиск: название, композитор, исполнитель…" autocomplete="off">
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="admin-bar" id="adminBar">
+    <span class="hint">Режим редактирования</span>
+    <button type="button" id="addBtn">+ Добавить песню</button>
+    <button type="button" class="secondary" id="seedBtn" style="display:none">Загрузить 95 песен в базу</button>
+  </div>
+
+  <div class="toolbar">
+    <div class="count" id="count"></div>
+    <select class="sort-select" id="sort">
+      <option value="title">По названию</option>
+      <option value="composer">По композитору</option>
+      <option value="key">По тональности</option>
+      <option value="frequency">По частоте</option>
+    </select>
+    <select class="extra-select" id="freqFilter">
+      <option value="">Частота: все</option>
+      <option value="Часто">Часто</option>
+      <option value="Иногда">Иногда</option>
+      <option value="Редко">Редко</option>
+      <option value="Архив">Архив</option>
+    </select>
+    <select class="extra-select" id="perfFilter">
+      <option value="">Тип: все</option>
+      <option value="Соло">Соло</option>
+      <option value="Дуэт">Дуэт</option>
+      <option value="Трио">Трио</option>
+      <option value="Ансамбль">Ансамбль</option>
+      <option value="Инструментал">Инструментал</option>
+    </select>
+  </div>
+
+  <div class="filters" id="filters"></div>
+  <div id="list"><div class="loading">Загрузка…</div></div>
+  <div class="empty" id="empty" style="display:none">
+    <div class="big">🎼</div>
+    <div>Ничего не найдено</div>
+  </div>
+</main>
+
+<footer>Родные напевы · репертуар ансамбля</footer>
+
+<!-- Login modal -->
+<div class="modal-overlay" id="loginModal">
+  <div class="modal">
+    <h2>Вход для редактирования</h2>
+    <label>Email</label>
+    <input type="email" id="loginEmail" autocomplete="username" placeholder="почта@yandex.ru">
+    <label>Пароль</label>
+    <input type="password" id="loginPass" autocomplete="current-password">
+    <div class="login-error" id="loginError">Неверный email или пароль</div>
+    <div class="modal-actions">
+      <button type="button" class="cancel" id="loginCancel">Отмена</button>
+      <button type="button" class="save" id="loginSubmit">Войти</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit modal -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <h2 id="editTitle">Редактировать</h2>
+    <input type="hidden" id="editId">
+    <label>Название *</label>
+    <input type="text" id="f_title">
+    <div class="row2">
+      <div>
+        <label>Композитор</label>
+        <input type="text" id="f_composer">
+      </div>
+      <div>
+        <label>Автор слов</label>
+        <input type="text" id="f_lyricist">
+      </div>
+    </div>
+    <div class="row2">
+      <div>
+        <label>Тональность</label>
+        <input type="text" id="f_key" placeholder="Em, G, F#m…">
+      </div>
+      <div>
+        <label>Страна</label>
+        <select id="f_country">
+          <option value="Русское">Русское</option>
+          <option value="Зарубежное">Зарубежное</option>
+          <option value="">—</option>
+        </select>
+      </div>
+    </div>
+    <label>Теги (через запятую)</label>
+    <input type="text" id="f_tags" placeholder="ретро, военная, патриотика">
+    <div class="row2">
+      <div>
+        <label>Исполнитель(и)</label>
+        <input type="text" id="f_performers">
+      </div>
+      <div>
+        <label>Тип исполнения</label>
+        <select id="f_perfType">
+          <option value="">—</option>
+          <option>Соло</option>
+          <option>Дуэт</option>
+          <option>Трио</option>
+          <option>Ансамбль</option>
+          <option>Инструментал</option>
+        </select>
+      </div>
+    </div>
+    <div class="row2">
+      <div>
+        <label>Длительность</label>
+        <input type="text" id="f_duration" placeholder="3:10">
+      </div>
+      <div>
+        <label>Частота</label>
+        <select id="f_frequency">
+          <option value="">—</option>
+          <option>Часто</option>
+          <option>Иногда</option>
+          <option>Редко</option>
+          <option>Архив</option>
+        </select>
+      </div>
+    </div>
+    <label>Концертные программы</label>
+    <input type="text" id="f_programs" placeholder="День Победы; …">
+    <div class="row2">
+      <div>
+        <label>Источник</label>
+        <input type="text" id="f_source" placeholder="фильм, опера…">
+      </div>
+      <div>
+        <label>Сложность (1–5)</label>
+        <select id="f_difficulty">
+          <option value="">—</option>
+          <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option>
+        </select>
+      </div>
+    </div>
+    <label>Аккомпанемент</label>
+    <input type="text" id="f_accompaniment">
+    <label>Материалы</label>
+    <div class="checks">
+      <label><input type="checkbox" id="f_hasNotes"> Ноты</label>
+      <label><input type="checkbox" id="f_hasScore"> Партитура</label>
+      <label><input type="checkbox" id="f_hasMinus"> Минус</label>
+      <label><input type="checkbox" id="f_hasVideo"> Видео</label>
+      <label><input type="checkbox" id="f_hasAudio"> Аудио</label>
+    </div>
+    <label>Примечание</label>
+    <textarea id="f_note"></textarea>
+    <div class="modal-actions">
+      <button type="button" class="cancel" id="editCancel">Отмена</button>
+      <button type="button" class="save" id="editSave">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyAQZDe4oUprd4Vzvmbvnk1nOekb_VABpRU",
+  authDomain: "rodnye-napevy.firebaseapp.com",
+  projectId: "rodnye-napevy",
+  storageBucket: "rodnye-napevy.firebasestorage.app",
+  messagingSenderId: "390750279637",
+  appId: "1:390750279637:web:a8da586f670b01c695cf5c"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+const SEED = [{"id": 1, "title": "15 песен о ВОВ", "composer": "В. Петрачков", "lyricist": "", "country": "Русское", "key": "", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "попурри", "tags": ["военная", "вокальное попурри", "патриотика"]}, {"id": 2, "title": "А я вижу", "composer": "А. Островский", "lyricist": "Л. Ошанин", "country": "Русское", "key": "G", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песня", "ретро"]}, {"id": 3, "title": "Баллада о солдате", "composer": "В. Соловьёв-Седой", "lyricist": "М. Матусовский", "country": "Русское", "key": "Fm", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["военная", "патриотика", "песня"]}, {"id": 4, "title": "Белая лебедь", "composer": "В. Флярковский", "lyricist": "Л. Дербенёв", "country": "Русское", "key": "Bm", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песня", "ретро"]}, {"id": 5, "title": "Белых роз лепестки", "composer": "Х. Накамуре", "lyricist": "Л. Дербенёв", "country": "Зарубежное", "key": "A", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песня"]}, {"id": 6, "title": "Бубенцы", "composer": "Бакалейников", "lyricist": "", "country": "Русское", "key": "Em", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["романс"]}, {"id": 7, "title": "В нашем старом саду", "composer": "И. Шварц", "lyricist": "Б. Окуджава", "country": "Русское", "key": "Bm", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песня", "ретро"]}, {"id": 8, "title": "В соловьиную ночь", "composer": "Л. Бокалов", "lyricist": "А. Фатьянов", "country": "Русское", "key": "Dm", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["лирика", "песня", "ретро"]}, {"id": 9, "title": "Венок Дуная", "composer": "О. Фельцман", "lyricist": "Е. Долматовский", "country": "Русское", "key": "Bm", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песня"]}, {"id": 10, "title": "Вечерняя песня", "composer": "В. Соловьёв-Седой", "lyricist": "А. Чуркин", "country": "Русское", "key": "Cm", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["патриотика", "песня", "про ленинград", "ретро"]}, {"id": 11, "title": "Всё могут короли", "composer": "Б. Рычков", "lyricist": "Л. Дербенёв", "country": "Русское", "key": "C", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песня", "ретро"]}, {"id": 12, "title": "Галоши", "composer": "А. Островский", "lyricist": "З. Петрова", "country": "Русское", "key": "F", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "часто вместе с «До, ре, ми»", "tags": ["песня", "ретро"]}, {"id": 13, "title": "Голубка", "composer": "С. Ирадьер", "lyricist": "", "country": "Зарубежное", "key": "C", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песня"]}, {"id": 14, "title": "Грустные ивы", "composer": "М. Блантер", "lyricist": "А. Жаров", "country": "Русское", "key": "Cm", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песня"]}, {"id": 15, "title": "Давай никогда не ссориться", "composer": "Ю. Цейтлин", "lyricist": "Ю. Цейтлин", "country": "Русское", "key": "Em", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "слова и музыка Ю. Цейтлина", "tags": ["песня"]}, {"id": 16, "title": "Далеко родные осины", "composer": "В. Соловьёв-Седой", "lyricist": "А. Фатьянов", "country": "Русское", "key": "Bm", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песня"]}, {"id": 17, "title": "Девчонки танцуют на палубе", "composer": "А. Пахмутова", "lyricist": "С. Гребенников, Н. Добронравов", "country": "Русское", "key": "Bm", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песня", "ретро"]}, {"id": 18, "title": "Детства последний звонок", "composer": "А. Бабаджанян", "lyricist": "М. Пляцковский", "country": "Русское", "key": "Em", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песня"]}, {"id": 19, "title": "До, ре, ми…", "composer": "А. Островский", "lyricist": "З. Петрова", "country": "Русское", "key": "C", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "часто вместе с «Галоши»", "tags": ["детская", "мюзикл", "песни кино", "песня"]}, {"id": 20, "title": "Дружба", "composer": "В. Сидоров", "lyricist": "А. Шмульян", "country": "Русское", "key": "F#m", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песня", "ретро", "танго", "танец"]}, {"id": 21, "title": "За дальнею околицей", "composer": "Н. Будашкин", "lyricist": "Г. Акулов", "country": "Русское", "key": "Fm", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["романс"]}, {"id": 22, "title": "Зачем меня окликнул ты", "composer": "А. Пахмутова", "lyricist": "Л. Ошанин", "country": "Русское", "key": "Bm", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песня", "ретро"]}, {"id": 23, "title": "Звёздный вальс", "composer": "А. Бабаев", "lyricist": "В. Харитонов", "country": "Русское", "key": "G", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["вальс", "романс"]}, {"id": 24, "title": "Казак уходил на войну", "composer": "Т. Хренников", "lyricist": "В. Гусев", "country": "Русское", "key": "G / Em", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["военная", "патриотика", "песня", "ретро"]}, {"id": 25, "title": "Как тебе служится", "composer": "Я. Френкель", "lyricist": "М. Танич", "country": "Русское", "key": "Bm", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["военная", "патриотика", "песня", "ретро"]}, {"id": 26, "title": "Колыбельная (из к/ф «Цирк»)", "composer": "И. Дунаевский", "lyricist": "", "country": "Русское", "key": "F", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["колыбельная", "песни кино", "ретро"]}, {"id": 27, "title": "Костры горят далёкие", "composer": "Б. Мокроусов", "lyricist": "И. Шамов", "country": "Русское", "key": "Dm", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["военная", "лирика", "песня", "ретро"]}, {"id": 28, "title": "Ландыши", "composer": "О. Фельцман", "lyricist": "", "country": "Русское", "key": "Cm", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песня", "ретро"]}, {"id": 29, "title": "Ласковая песня", "composer": "М. Фрадкин", "lyricist": "Е. Долматовский", "country": "Русское", "key": "F", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песня", "ретро"]}, {"id": 30, "title": "Лунной тропой", "composer": "А. Островский", "lyricist": "Г. Регистан", "country": "Русское", "key": "G", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песня", "песня-танец", "ретро", "танго"]}, {"id": 31, "title": "Лучше нету того цвета", "composer": "М. Блантер", "lyricist": "М. Исаковский", "country": "Русское", "key": "Am", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песня"]}, {"id": 32, "title": "Любви негромкие слова", "composer": "В. Шаинский", "lyricist": "Б. Дубровин", "country": "Русское", "key": "Bb", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песня", "ретро"]}, {"id": 33, "title": "Любила я", "composer": "И. Шишкин", "lyricist": "С. Уколова", "country": "Русское", "key": "Am", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["классический романс", "романс"]}, {"id": 34, "title": "Маленькие туфельки", "composer": "Ч. Чаплин", "lyricist": "Д. Седых", "country": "Зарубежное", "key": "Gm", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песня"]}, {"id": 35, "title": "Манжерок", "composer": "О. Фельцман", "lyricist": "Н. Олев", "country": "Русское", "key": "E", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["ретро", "танец", "танец-песня"]}, {"id": 36, "title": "Матросские ночи", "composer": "В. Соловьёв-Седой", "lyricist": "С. Фогельсон", "country": "Русское", "key": "Cm", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песня"]}, {"id": 37, "title": "Мать родная моя", "composer": "Пл. Майборода", "lyricist": "А. Малышко", "country": "Русское", "key": "Cm", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["патриотика", "песни кино", "песня", "ретро"]}, {"id": 38, "title": "Медведь", "composer": "", "lyricist": "", "country": "Русское", "key": "D", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["детская", "песня"]}, {"id": 39, "title": "Мексиканский танец", "composer": "А. Лепин", "lyricist": "", "country": "Русское", "key": "Eb", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песня-танец", "ретро", "стилизация", "танец"]}, {"id": 40, "title": "Миленький мой", "composer": "РНП", "lyricist": "", "country": "Русское", "key": "G", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["народная"]}, {"id": 41, "title": "Мир дому твоему", "composer": "О. Фельцман", "lyricist": "И. Кохановский", "country": "Русское", "key": "G", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песня", "ретро"]}, {"id": 42, "title": "Молчание", "composer": "И. Дунаевский", "lyricist": "М. Матусовский", "country": "Русское", "key": "Cm", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["вальс", "песня", "песня-вальс"]}, {"id": 43, "title": "Москва за нами", "composer": "Г. Мовсесян", "lyricist": "Р. Рождественский", "country": "Русское", "key": "Bm", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["военная", "патриотика", "песня"]}, {"id": 44, "title": "Моя любимая", "composer": "М. Блантер", "lyricist": "Е. Долматовский", "country": "Русское", "key": "Dm", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песня", "ретро"]}, {"id": 45, "title": "Моя Москва", "composer": "И. Дунаевский", "lyricist": "М. Лисянский", "country": "Русское", "key": "Bm", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["патриотика", "песня"]}, {"id": 46, "title": "На катке", "composer": "А. Новиков", "lyricist": "", "country": "Русское", "key": "E", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песня"]}, {"id": 47, "title": "На крылечке", "composer": "Б. Мокроусов", "lyricist": "А. Фатьянов", "country": "Русское", "key": "Am / Gm", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песня", "ретро"]}, {"id": 48, "title": "На лодке", "composer": "В. Соловьёв-Седой", "lyricist": "В. Лебедев-Кумач", "country": "Русское", "key": "F#m", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песня"]}, {"id": 49, "title": "Нам нужна одна победа", "composer": "Б. Окуджава", "lyricist": "Б. Окуджава", "country": "Русское", "key": "Gm", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["военная", "патриотика", "песни кино", "ретро"]}, {"id": 50, "title": "Наташка-первоклашка", "composer": "Ю. Чичков", "lyricist": "К. Ибряев", "country": "Русское", "key": "C", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["детская", "песня", "ретро", "школьная"]}, {"id": 51, "title": "Наш город", "composer": "В. Соловьёв-Седой", "lyricist": "А. Фатьянов", "country": "Русское", "key": "Dm", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песня"]}, {"id": 52, "title": "Не забывай", "composer": "И. Дунаевский", "lyricist": "М. Матусовский", "country": "Русское", "key": "D", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "часто исполняется вместе с «Нежность» Пахмутовой", "tags": ["песня", "ретро"]}, {"id": 53, "title": "Не спеши", "composer": "А. Бабаджанян", "lyricist": "Е. Евтушенко", "country": "Русское", "key": "Fm", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["романс"]}, {"id": 54, "title": "Нежность", "composer": "А. Пахмутова", "lyricist": "С. Гребенников, Н. Добронравов", "country": "Русское", "key": "F#m", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "часто вместе с «Не забывай» Дунаевского", "tags": ["песня", "ретро"]}, {"id": 55, "title": "О любви", "composer": "В. Флярковский", "lyricist": "В. Семернин", "country": "Русское", "key": "Eb", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песня", "ретро"]}, {"id": 56, "title": "Одинокая гармонь", "composer": "Б. Мокроусов", "lyricist": "М. Исаковский", "country": "Русское", "key": "Em", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песня", "ретро", "романс", "стилизация под рнп"]}, {"id": 57, "title": "Ой, цветёт калина", "composer": "И. Дунаевский", "lyricist": "В. Лебедев-Кумач", "country": "Русское", "key": "Em", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["народная стилистика", "песни кино", "песня", "ретро"]}, {"id": 58, "title": "Песенка о медведях", "composer": "А. Зацепин", "lyricist": "Л. Дербенёв", "country": "Русское", "key": "Dm", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песни кино", "песня", "ретро"]}, {"id": 59, "title": "Песенка Элизы (Я танцевать хочу)", "composer": "Ф. Лоу", "lyricist": "Д. Лернер", "country": "Зарубежное", "key": "C", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "из мюзикла «Моя прекрасная леди»", "tags": ["мюзикл", "песня"]}, {"id": 60, "title": "Песня неуловимых мстителей", "composer": "Б. Мокроусов", "lyricist": "Р. Рождественский", "country": "Русское", "key": "Cm", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["военная", "песни кино", "песня"]}, {"id": 61, "title": "Песня о любви (Моя любовь)", "composer": "И. Дунаевский", "lyricist": "А. Д'актиль", "country": "Русское", "key": "F", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песня", "ретро"]}, {"id": 62, "title": "Песня о Родине", "composer": "И. Дунаевский", "lyricist": "В. Лебедев-Кумач", "country": "Русское", "key": "G", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["патриотика", "песня", "ретро"]}, {"id": 63, "title": "Песня о солдате", "composer": "В. Мигуля", "lyricist": "М. Агашин", "country": "Русское", "key": "Dm", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["военная", "патриотика", "песня"]}, {"id": 64, "title": "Песня первой любви", "composer": "А. Бабаджанян", "lyricist": "Г. Регистан", "country": "Русское", "key": "Em", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песня", "румба"]}, {"id": 65, "title": "Песня стрекозы", "composer": "С. Цинцадзе", "lyricist": "М. Батарашвили", "country": "Русское", "key": "A", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песни кино", "песня", "ретро"]}, {"id": 66, "title": "Песня Тони об Одессе", "composer": "И. Дунаевский", "lyricist": "", "country": "Русское", "key": "Cm", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песни кино", "песня", "ретро"]}, {"id": 67, "title": "Письмо к матери", "composer": "В. Липатов", "lyricist": "С. Есенин", "country": "Русское", "key": "Bm", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["военная", "патриотика", "песня", "ретро"]}, {"id": 68, "title": "По улице мостовой", "composer": "РНП", "lyricist": "", "country": "Русское", "key": "D", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["народная"]}, {"id": 69, "title": "Подари мне платок", "composer": "Г. Пономаренко", "lyricist": "М. Агашина", "country": "Русское", "key": "Gm", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "часто вместе с «Баллада о солдате»", "tags": ["песня", "ретро"]}, {"id": 70, "title": "Полынь", "composer": "А. Пахмутова", "lyricist": "Р. Рождественский", "country": "Русское", "key": "Em", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песня", "ретро"]}, {"id": 71, "title": "Попурри на темы песен А. Островского", "composer": "В. Петрачков", "lyricist": "", "country": "Русское", "key": "", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "попурри", "tags": ["вокальное попурри"]}, {"id": 72, "title": "Радуга", "composer": "В. Флярковский", "lyricist": "М. Танич", "country": "Русское", "key": "Bm", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песня", "ретро"]}, {"id": 73, "title": "Ракетчики", "composer": "Г. Мовсесян", "lyricist": "Р. Рождественский", "country": "Русское", "key": "Am", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["военная", "патриотика", "песня"]}, {"id": 74, "title": "Романс Женьки (Жди меня)", "composer": "К. Молчанов", "lyricist": "К. Симонов", "country": "Русское", "key": "Gm", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["классика", "песни кино", "романс"]}, {"id": 75, "title": "Санта Лючия", "composer": "А. Лонго / Т. Коттрау", "lyricist": "", "country": "Зарубежное", "key": "C", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песня"]}, {"id": 76, "title": "Саша", "composer": "Б. Фомин", "lyricist": "Герман", "country": "Русское", "key": "F", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песня"]}, {"id": 77, "title": "Севастопольский вальс", "composer": "К. Листов", "lyricist": "Г. Рублёв", "country": "Русское", "key": "Ab", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["вальс", "песня", "песня-танец", "ретро"]}, {"id": 78, "title": "Снег, снежок", "composer": "Г. Пономаренко", "lyricist": "В. Боков", "country": "Русское", "key": "Am", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песня", "ретро", "стилизация под рнп"]}, {"id": 79, "title": "Снегурочка", "composer": "А. Пахмутова", "lyricist": "С. Гребенников, Н. Добронравов", "country": "Русское", "key": "Cm", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песня", "ретро"]}, {"id": 80, "title": "Соловьи", "composer": "В. Соловьёв-Седой", "lyricist": "А. Фатьянов", "country": "Русское", "key": "Bb", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песня"]}, {"id": 81, "title": "Сон-трава", "composer": "Е. Птичкин", "lyricist": "Т. Коршилова", "country": "Русское", "key": "Fm", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песня", "ретро"]}, {"id": 82, "title": "Старые слова", "composer": "О. Фельцман", "lyricist": "Р. Рождественский", "country": "Русское", "key": "Dm", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "2 экземпляра", "tags": ["песня", "ретро"]}, {"id": 83, "title": "Старый клён", "composer": "А. Пахмутова", "lyricist": "", "country": "Русское", "key": "Em", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песня", "ретро"]}, {"id": 84, "title": "Текстильный городок", "composer": "Я. Френкель", "lyricist": "М. Танич", "country": "Русское", "key": "Cm / Eb", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песня", "ретро"]}, {"id": 85, "title": "Теплоход", "composer": "О. Фельцман", "lyricist": "Л. Давидович, В. Драгунский", "country": "Русское", "key": "A", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песня", "ретро"]}, {"id": 86, "title": "Тоска по весне", "composer": "В.А. Моцарт", "lyricist": "Кр. Овербек", "country": "Зарубежное", "key": "F", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["детская", "песня"]}, {"id": 87, "title": "Ты погоди", "composer": "П. Аедоницкий", "lyricist": "И. Шаферан", "country": "Русское", "key": "Em", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песня"]}, {"id": 88, "title": "Тёмная ночь", "composer": "Н. Богословский", "lyricist": "В. Агатов", "country": "Русское", "key": "Cm", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["военная", "патриотика", "песни кино"]}, {"id": 89, "title": "Утренняя песня", "composer": "И. Дунаевский", "lyricist": "М. Матусовский", "country": "Русское", "key": "Gm", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песня", "ретро"]}, {"id": 90, "title": "Ходит песенка по кругу", "composer": "О. Фельцман", "lyricist": "М. Танич, И. Шаферан", "country": "Русское", "key": "C", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песня", "ретро"]}, {"id": 91, "title": "Хороши вечера на Оби", "composer": "А. Фаттах", "lyricist": "В. Семернин", "country": "Русское", "key": "F", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песня", "ретро"]}, {"id": 92, "title": "Цветы из Ниццы", "composer": "Будей", "lyricist": "", "country": "Русское", "key": "G", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["романс"]}, {"id": 93, "title": "Школьные годы", "composer": "Д. Кабалевский", "lyricist": "Е. Долматовский", "country": "Русское", "key": "Gm", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песня", "ретро", "школьная"]}, {"id": 94, "title": "Эхо", "composer": "Е. Птичкин", "lyricist": "Р. Рождественский", "country": "Русское", "key": "Dm", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["песня", "ретро"]}, {"id": 95, "title": "Я всегда с тобой", "composer": "В. Мурадели", "lyricist": "Я. Халецкий", "country": "Русское", "key": "Bm", "performers": "", "perfType": "", "duration": "", "programs": "", "source": "", "difficulty": "", "frequency": "", "hasNotes": "", "hasScore": "", "hasMinus": "", "hasVideo": "", "hasAudio": "", "accompaniment": "", "note": "", "tags": ["лирика", "песня"]}];
+const FILTER_TAGS_FALLBACK = ["ретро", "патриотика", "военная", "песни кино", "романс", "детская", "лирика", "танец", "вальс", "песня-танец", "вокальное попурри", "мюзикл", "танго", "народная", "школьная", "стилизация под рнп", "про ленинград", "колыбельная", "классический романс", "танец-песня", "стилизация", "песня-вальс", "народная стилистика", "румба", "классика"];
+const TAG_COUNTS_FALLBACK = {"песня": 79, "ретро": 53, "патриотика": 14, "военная": 12, "песни кино": 11, "романс": 8, "детская": 4, "лирика": 3, "танец": 3, "вальс": 3, "песня-танец": 3, "вокальное попурри": 2, "мюзикл": 2, "танго": 2, "народная": 2, "школьная": 2, "стилизация под рнп": 2, "про ленинград": 1, "колыбельная": 1, "классический романс": 1, "танец-песня": 1, "стилизация": 1, "песня-вальс": 1, "народная стилистика": 1, "румба": 1, "классика": 1};
+
+let SONGS = [];
+let user = null;
+let activeTags = new Set();
+let showAllChips = false;
+let openId = null;
+let tagCounts = {};
+
+const PRIMARY = ['ретро','патриотика','военная','песни кино','романс','детская','лирика','народная','мюзикл','вальс','танго'];
+const FREQ_ORDER = { 'Часто': 1, 'Иногда': 2, 'Редко': 3, 'Архив': 4 };
+
+const $q = document.getElementById('q');
+const $list = document.getElementById('list');
+const $count = document.getElementById('count');
+const $empty = document.getElementById('empty');
+const $filters = document.getElementById('filters');
+const $sort = document.getElementById('sort');
+const $freqFilter = document.getElementById('freqFilter');
+const $perfFilter = document.getElementById('perfFilter');
+const $authBtn = document.getElementById('authBtn');
+const $adminBar = document.getElementById('adminBar');
+const $seedBtn = document.getElementById('seedBtn');
+const $toast = document.getElementById('toast');
+
+function toast(msg) {
+  $toast.textContent = msg;
+  $toast.classList.add('show');
+  setTimeout(() => $toast.classList.remove('show'), 2500);
+}
+
+function esc(s) {
+  return String(s || '').replace(/[&<>"']/g, c =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function norm(s) {
+  return (s || '').toLowerCase().replace(/ё/g, 'е').replace(/[«»"'']/g, '');
+}
+function yn(v) {
+  if (v === true || v === false) return v;
+  if (!v) return null;
+  const s = String(v).trim().toLowerCase();
+  if (s === 'да' || s === 'yes' || s === 'true' || s === '1') return true;
+  if (s === 'нет' || s === 'no' || s === 'false' || s === '0') return false;
+  return null;
+}
+function isYes(v) { return yn(v) === true; }
+
+function rebuildTagCounts() {
+  tagCounts = {};
+  SONGS.forEach(s => (s.tags || []).forEach(t => { tagCounts[t] = (tagCounts[t] || 0) + 1; }));
+}
+
+function loadSongs() {
+  return db.collection('songs').get().then(snap => {
+    if (snap.empty) {
+      SONGS = SEED.map(s => ({ ...s }));
+      rebuildTagCounts();
+      $seedBtn.style.display = user ? 'inline-block' : 'none';
+      return;
+    }
+    SONGS = [];
+    snap.forEach(doc => {
+      const d = doc.data();
+      SONGS.push({
+        docId: doc.id,
+        id: d.id || 0,
+        title: d.title || '',
+        composer: d.composer || '',
+        lyricist: d.lyricist || '',
+        country: d.country || '',
+        key: d.key || '',
+        performers: d.performers || '',
+        perfType: d.perfType || '',
+        duration: d.duration || '',
+        programs: d.programs || '',
+        source: d.source || '',
+        difficulty: d.difficulty || '',
+        frequency: d.frequency || '',
+        hasNotes: d.hasNotes || '',
+        hasScore: d.hasScore || '',
+        hasMinus: d.hasMinus || '',
+        hasVideo: d.hasVideo || '',
+        hasAudio: d.hasAudio || '',
+        accompaniment: d.accompaniment || '',
+        note: d.note || '',
+        tags: Array.isArray(d.tags) ? d.tags : [],
+      });
+    });
+    rebuildTagCounts();
+    $seedBtn.style.display = 'none';
+  }).catch(err => {
+    console.error(err);
+    SONGS = SEED.map(s => ({ ...s }));
+    rebuildTagCounts();
+    toast('Не удалось загрузить базу — показаны локальные данные');
+  });
+}
+
+auth.onAuthStateChanged(u => {
+  user = u;
+  if (u) {
+    $authBtn.textContent = 'Выйти';
+    $authBtn.classList.add('out');
+    $adminBar.classList.add('show');
+    if (!SONGS.length || !SONGS[0].docId) $seedBtn.style.display = 'inline-block';
+  } else {
+    $authBtn.textContent = 'Войти';
+    $authBtn.classList.remove('out');
+    $adminBar.classList.remove('show');
+    $seedBtn.style.display = 'none';
+  }
+  render();
+});
+
+$authBtn.onclick = () => {
+  if (user) {
+    auth.signOut();
+    toast('Вы вышли');
+  } else {
+    document.getElementById('loginError').style.display = 'none';
+    document.getElementById('loginModal').classList.add('show');
+  }
+};
+
+document.getElementById('loginCancel').onclick = () => {
+  document.getElementById('loginModal').classList.remove('show');
+};
+document.getElementById('loginSubmit').onclick = () => {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  auth.signInWithEmailAndPassword(email, pass)
+    .then(() => {
+      document.getElementById('loginModal').classList.remove('show');
+      document.getElementById('loginPass').value = '';
+      toast('Вход выполнен');
+    })
+    .catch(() => {
+      document.getElementById('loginError').style.display = 'block';
+    });
+};
+
+document.getElementById('seedBtn').onclick = async () => {
+  if (!user) return;
+  if (!confirm('Загрузить 95 песен в Firebase? Делается один раз.')) return;
+  $seedBtn.disabled = true;
+  $seedBtn.textContent = 'Загрузка…';
+  try {
+    const batchSize = 400;
+    let batch = db.batch();
+    let n = 0;
+    for (const s of SEED) {
+      const ref = db.collection('songs').doc();
+      batch.set(ref, { ...s, tags: s.tags || [] });
+      n++;
+      if (n % batchSize === 0) {
+        await batch.commit();
+        batch = db.batch();
+      }
+    }
+    if (n % batchSize !== 0) await batch.commit();
+    toast('Песни загружены');
+    await loadSongs();
+    render();
+  } catch (e) {
+    console.error(e);
+    toast('Ошибка загрузки: ' + e.message);
+  }
+  $seedBtn.disabled = false;
+  $seedBtn.textContent = 'Загрузить 95 песен в базу';
+};
+
+document.getElementById('addBtn').onclick = () => openEditor(null);
+
+function openEditor(song) {
+  document.getElementById('editTitle').textContent = song ? 'Редактировать' : 'Новая песня';
+  document.getElementById('editId').value = song && song.docId ? song.docId : '';
+  const set = (id, v) => { document.getElementById(id).value = v || ''; };
+  set('f_title', song && song.title);
+  set('f_composer', song && song.composer);
+  set('f_lyricist', song && song.lyricist);
+  set('f_key', song && song.key);
+  set('f_country', song && song.country || 'Русское');
+  set('f_tags', song && (song.tags || []).join(', '));
+  set('f_performers', song && song.performers);
+  set('f_perfType', song && song.perfType);
+  set('f_duration', song && song.duration);
+  set('f_frequency', song && song.frequency);
+  set('f_programs', song && song.programs);
+  set('f_source', song && song.source);
+  set('f_difficulty', song && song.difficulty);
+  set('f_accompaniment', song && song.accompaniment);
+  set('f_note', song && song.note);
+  document.getElementById('f_hasNotes').checked = isYes(song && song.hasNotes);
+  document.getElementById('f_hasScore').checked = isYes(song && song.hasScore);
+  document.getElementById('f_hasMinus').checked = isYes(song && song.hasMinus);
+  document.getElementById('f_hasVideo').checked = isYes(song && song.hasVideo);
+  document.getElementById('f_hasAudio').checked = isYes(song && song.hasAudio);
+  document.getElementById('editModal').classList.add('show');
+}
+
+document.getElementById('editCancel').onclick = () => {
+  document.getElementById('editModal').classList.remove('show');
+};
+
+document.getElementById('editSave').onclick = async () => {
+  if (!user) return toast('Нужен вход');
+  const title = document.getElementById('f_title').value.trim();
+  if (!title) return toast('Укажите название');
+
+  const tags = document.getElementById('f_tags').value
+    .split(/[,;]/).map(t => t.trim().toLowerCase()).filter(Boolean);
+
+  const data = {
+    title,
+    composer: document.getElementById('f_composer').value.trim(),
+    lyricist: document.getElementById('f_lyricist').value.trim(),
+    key: document.getElementById('f_key').value.trim(),
+    country: document.getElementById('f_country').value,
+    tags,
+    performers: document.getElementById('f_performers').value.trim(),
+    perfType: document.getElementById('f_perfType').value,
+    duration: document.getElementById('f_duration').value.trim(),
+    frequency: document.getElementById('f_frequency').value,
+    programs: document.getElementById('f_programs').value.trim(),
+    source: document.getElementById('f_source').value.trim(),
+    difficulty: document.getElementById('f_difficulty').value,
+    accompaniment: document.getElementById('f_accompaniment').value.trim(),
+    note: document.getElementById('f_note').value.trim(),
+    hasNotes: document.getElementById('f_hasNotes').checked ? 'Да' : '',
+    hasScore: document.getElementById('f_hasScore').checked ? 'Да' : '',
+    hasMinus: document.getElementById('f_hasMinus').checked ? 'Да' : '',
+    hasVideo: document.getElementById('f_hasVideo').checked ? 'Да' : '',
+    hasAudio: document.getElementById('f_hasAudio').checked ? 'Да' : '',
+  };
+
+  const docId = document.getElementById('editId').value;
+  try {
+    if (docId) {
+      await db.collection('songs').doc(docId).update(data);
+      toast('Сохранено');
+    } else {
+      const maxId = SONGS.reduce((m, s) => Math.max(m, s.id || 0), 0);
+      data.id = maxId + 1;
+      await db.collection('songs').add(data);
+      toast('Песня добавлена');
+    }
+    document.getElementById('editModal').classList.remove('show');
+    await loadSongs();
+    render();
+  } catch (e) {
+    console.error(e);
+    toast('Ошибка: ' + e.message);
+  }
+};
+
+async function deleteSong(song) {
+  if (!user || !song.docId) return;
+  if (!confirm('Удалить «' + song.title + '»?')) return;
+  try {
+    await db.collection('songs').doc(song.docId).delete();
+    toast('Удалено');
+    openId = null;
+    await loadSongs();
+    render();
+  } catch (e) {
+    toast('Ошибка: ' + e.message);
+  }
+}
+
+function renderChips() {
+  const allTags = Object.keys(tagCounts).filter(t => t !== 'песня').sort((a, b) => (tagCounts[b] || 0) - (tagCounts[a] || 0));
+  const primarySet = new Set(PRIMARY.filter(t => tagCounts[t]));
+  const secondary = allTags.filter(t => !primarySet.has(t));
+  const tags = showAllChips ? [...primarySet, ...secondary] : [...primarySet];
+  let html = tags.map(t => {
+    const active = activeTags.has(t) ? ' active' : '';
+    return `<button type="button" class="chip${active}" data-tag="${t}">${t}<span class="n">${tagCounts[t] || 0}</span></button>`;
+  }).join('');
+  if (secondary.length) {
+    html += `<button type="button" class="more-filters-btn" id="moreBtn">${showAllChips ? 'Свернуть' : 'Ещё теги…'}</button>`;
+  }
+  if (activeTags.size) {
+    html += `<button type="button" class="chip" id="clearTags" style="border-color:#fca5a5;color:#b91c1c">✕ Сбросить теги</button>`;
+  }
+  $filters.innerHTML = html;
+  $filters.querySelectorAll('.chip[data-tag]').forEach(btn => {
+    btn.onclick = () => {
+      const t = btn.dataset.tag;
+      if (activeTags.has(t)) activeTags.delete(t); else activeTags.add(t);
+      render();
+    };
+  });
+  const more = document.getElementById('moreBtn');
+  if (more) more.onclick = () => { showAllChips = !showAllChips; renderChips(); };
+  const clear = document.getElementById('clearTags');
+  if (clear) clear.onclick = () => { activeTags.clear(); render(); };
+}
+
+function filtered() {
+  const q = norm($q.value.trim());
+  const freq = $freqFilter.value;
+  const perf = $perfFilter.value;
+  let list = SONGS.filter(s => {
+    if (activeTags.size) {
+      for (const t of activeTags) if (!(s.tags || []).includes(t)) return false;
+    }
+    if (freq && s.frequency !== freq) return false;
+    if (perf && s.perfType !== perf) return false;
+    if (!q) return true;
+    const hay = norm([s.title, s.composer, s.lyricist, s.key, s.performers, s.programs, s.source, s.note, ...(s.tags || [])].join(' '));
+    return q.split(/\s+/).every(w => hay.includes(w));
+  });
+  const sort = $sort.value;
+  list = [...list].sort((a, b) => {
+    if (sort === 'composer') return (a.composer || 'яяя').localeCompare(b.composer || 'яяя', 'ru') || a.title.localeCompare(b.title, 'ru');
+    if (sort === 'key') return (a.key || 'яяя').localeCompare(b.key || 'яяя', 'ru') || a.title.localeCompare(b.title, 'ru');
+    if (sort === 'frequency') return (FREQ_ORDER[a.frequency] || 9) - (FREQ_ORDER[b.frequency] || 9) || a.title.localeCompare(b.title, 'ru');
+    return a.title.localeCompare(b.title, 'ru');
+  });
+  return list;
+}
+
+function row(label, value) {
+  const v = value && String(value).trim() ? esc(value) : '—';
+  const cls = (value && String(value).trim()) ? '' : ' class="dash"';
+  return `<dt>${esc(label)}</dt><dd${cls}>${v}</dd>`;
+}
+function mat(label, val) {
+  return isYes(val) ? `<span class="mat yes">✓ ${label}</span>` : `<span class="mat">${label}</span>`;
+}
+function freqClass(f) {
+  if (f === 'Часто') return 'freq-often';
+  if (f === 'Иногда') return 'freq-sometimes';
+  if (f === 'Редко') return 'freq-rare';
+  if (f === 'Архив') return 'freq-archive';
+  return '';
+}
+
+function render() {
+  renderChips();
+  const list = filtered();
+  $count.innerHTML = `Найдено: <strong>${list.length}</strong> из ${SONGS.length}`;
+  $empty.style.display = list.length ? 'none' : 'block';
+
+  $list.innerHTML = list.map(s => {
+    const isOpen = openId != null && (String(openId) === String(s.docId || '') || String(openId) === String(s.id));
+    const tagsHtml = (s.tags || []).filter(t => t !== 'песня').map(t => `<span class="tag">${esc(t)}</span>`).join('');
+    const tagsText = (s.tags || []).join(', ');
+    const lyricist = s.lyricist ? `<span class="sep">·</span>${esc(s.lyricist)}` : '';
+    let quick = '';
+    if (s.perfType) quick += `<span class="pill">${esc(s.perfType)}</span>`;
+    if (s.duration) quick += `<span class="pill">${esc(s.duration)}</span>`;
+    if (s.frequency) quick += `<span class="pill ${freqClass(s.frequency)}">${esc(s.frequency)}</span>`;
+    if (s.performers) quick += `<span class="pill">👤 ${esc(s.performers)}</span>`;
+
+    const mats = [mat('Ноты', s.hasNotes), mat('Партитура', s.hasScore), mat('Минус', s.hasMinus), mat('Видео', s.hasVideo), mat('Аудио', s.hasAudio)].join('');
+
+    let dl = '';
+    dl += row('Композитор', s.composer);
+    dl += row('Автор слов', s.lyricist);
+    dl += row('Тональность', s.key);
+    dl += row('Страна', s.country);
+    dl += row('Теги', tagsText);
+    dl += row('Исполнитель(и)', s.performers);
+    dl += row('Тип исполнения', s.perfType);
+    dl += row('Длительность', s.duration);
+    dl += row('Частота', s.frequency);
+    dl += row('Концертные программы', s.programs);
+    dl += row('Источник', s.source);
+    dl += row('Уровень сложности', s.difficulty ? s.difficulty + ' / 5' : '');
+    dl += row('Аккомпанемент', s.accompaniment);
+    dl += `<dt>Материалы</dt><dd><div class="materials">${mats}</div></dd>`;
+
+    let actions = '';
+    if (user) {
+      actions = `<div class="edit-actions">
+        <button type="button" data-edit="${esc(s.docId || '')}">Редактировать</button>
+        <button type="button" class="danger" data-del="${esc(s.docId || '')}">Удалить</button>
+      </div>`;
+    }
+
+    const oid = s.docId || s.id;
+    return `<article class="card${isOpen ? ' open' : ''}" data-oid="${esc(String(oid))}">
+      <div class="card-top">
+        <div>
+          <div class="title">${esc(s.title)}</div>
+          <div class="meta">${esc(s.composer || '—')}${lyricist}${s.country === 'Зарубежное' ? '<span class="sep">·</span>зарубежное' : ''}</div>
+        </div>
+        ${s.key ? `<div class="key-badge">${esc(s.key)}</div>` : ''}
+      </div>
+      ${quick ? `<div class="quick-row">${quick}</div>` : ''}
+      ${tagsHtml ? `<div class="tags-row">${tagsHtml}</div>` : ''}
+      <div class="details">
+        <dl>${dl}</dl>
+        ${s.note ? `<div class="note-box">${esc(s.note)}</div>` : `<div class="note-box" style="opacity:.55">Примечание: —</div>`}
+        ${actions}
+      </div>
+    </article>`;
+  }).join('');
+
+  $list.querySelectorAll('.card').forEach(card => {
+    card.onclick = (e) => {
+      if (e.target.closest('button')) return;
+      const oid = card.dataset.oid;
+      openId = String(openId) === String(oid) ? null : String(oid);
+      render();
+    };
+  });
+  $list.querySelectorAll('[data-edit]').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const song = SONGS.find(s => s.docId === btn.dataset.edit);
+      if (song) openEditor(song);
+    };
+  });
+  $list.querySelectorAll('[data-del]').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const song = SONGS.find(s => s.docId === btn.dataset.del);
+      if (song) deleteSong(song);
+    };
+  });
+}
+
+$q.addEventListener('input', render);
+$sort.addEventListener('change', render);
+$freqFilter.addEventListener('change', render);
+$perfFilter.addEventListener('change', render);
+
+// file:// often breaks Firebase — use GitHub Pages URL
+if (location.protocol === 'file:') {
+  console.warn('Откройте сайт через GitHub Pages, не как локальный файл');
+}
+loadSongs().then(render);
+</script>
+</body>
+</html>
