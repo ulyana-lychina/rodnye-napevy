@@ -381,6 +381,21 @@ let tagCounts = {};
 const PRIMARY = ['ретро','патриотика','военная','песни кино','романс','детская','лирика','народная','мюзикл','вальс','танго'];
 const FREQ_ORDER = { 'Часто': 1, 'Иногда': 2, 'Редко': 3, 'Архив': 4 };
 
+/** Фамилия для сортировки: "В. Соловьёв-Седой" → "Соловьёв-Седой", "РНП" → "РНП" */
+function composerSurname(composer) {
+  const s = (composer || '').trim();
+  if (!s) return 'яяя';
+  // убрать инициалы вида "В." "А.А." в начале
+  const withoutInitials = s.replace(/^([А-ЯЁA-Z]\.\s*)+/u, '').trim();
+  if (withoutInitials) {
+    // если осталось несколько слов — берём последнее как фамилию
+    // но "Соловьёв-Седой" уже одно "слово"; "фон Трамп" редко
+    const parts = withoutInitials.split(/\s+/);
+    return parts[parts.length - 1].toLowerCase().replace(/ё/g, 'е');
+  }
+  return s.toLowerCase().replace(/ё/g, 'е');
+}
+
 const $q = document.getElementById('q');
 const $list = document.getElementById('list');
 const $count = document.getElementById('count');
@@ -684,7 +699,7 @@ function filtered() {
   });
   const sort = $sort.value;
   list = [...list].sort((a, b) => {
-    if (sort === 'composer') return (a.composer || 'яяя').localeCompare(b.composer || 'яяя', 'ru') || a.title.localeCompare(b.title, 'ru');
+    if (sort === 'composer') return composerSurname(a.composer).localeCompare(composerSurname(b.composer), 'ru') || a.title.localeCompare(b.title, 'ru');
     if (sort === 'key') return (a.key || 'яяя').localeCompare(b.key || 'яяя', 'ru') || a.title.localeCompare(b.title, 'ru');
     if (sort === 'frequency') return (FREQ_ORDER[a.frequency] || 9) - (FREQ_ORDER[b.frequency] || 9) || a.title.localeCompare(b.title, 'ru');
     return a.title.localeCompare(b.title, 'ru');
