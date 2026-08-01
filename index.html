@@ -239,6 +239,9 @@
       <option value="Ансамбль">Ансамбль</option>
       <option value="Инструментал">Инструментал</option>
     </select>
+    <select class="extra-select" id="letterFilter" title="Буква фамилии" style="display:none">
+      <option value="">Все буквы</option>
+    </select>
   </div>
 
   <div class="filters" id="filters"></div>
@@ -412,7 +415,40 @@ function composerSurname(composer) {
   return s.toLowerCase().replace(/ё/g, 'е');
 }
 
+const RU_LETTERS = 'АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЭЮЯ';
+
+function surnameLetter(composer) {
+  const s = composerSurname(composer);
+  if (!s || s === 'яяя') return '';
+  let ch = s.charAt(0).toUpperCase();
+  if (ch === 'Е' && s.charAt(0) === 'ё') ch = 'Ё';
+  // latin -> keep as is upper
+  return ch;
+}
+
+function fillLetterOptions() {
+  const present = new Set();
+  SONGS.forEach(s => {
+    const L = surnameLetter(s.composer);
+    if (L) present.add(L);
+  });
+  const cur = $letterFilter.value;
+  let html = '<option value="">Все буквы</option>';
+  // Russian letters that exist in data, in alphabet order
+  for (const L of RU_LETTERS) {
+    if (present.has(L)) html += `<option value="${L}">${L}</option>`;
+  }
+  // any other letters (latin etc.)
+  const other = [...present].filter(L => !RU_LETTERS.includes(L)).sort((a, b) => a.localeCompare(b, 'en'));
+  for (const L of other) {
+    html += `<option value="${L}">${L}</option>`;
+  }
+  $letterFilter.innerHTML = html;
+  if (cur && present.has(cur)) $letterFilter.value = cur;
+}
+
 const $q = document.getElementById('q');
+
 const $list = document.getElementById('list');
 const $count = document.getElementById('count');
 const $empty = document.getElementById('empty');
@@ -420,6 +456,7 @@ const $filters = document.getElementById('filters');
 const $sort = document.getElementById('sort');
 const $freqFilter = document.getElementById('freqFilter');
 const $perfFilter = document.getElementById('perfFilter');
+const $letterFilter = document.getElementById('letterFilter');
 const $authBtn = document.getElementById('authBtn');
 const $adminBar = document.getElementById('adminBar');
 const $seedBtn = document.getElementById('seedBtn');
@@ -458,6 +495,7 @@ function loadSongs() {
     if (snap.empty) {
       SONGS = SEED.map(s => ({ ...s }));
       rebuildTagCounts();
+      fillLetterOptions();
       $seedBtn.style.display = user ? 'inline-block' : 'none';
       return;
     }
@@ -490,11 +528,13 @@ function loadSongs() {
       });
     });
     rebuildTagCounts();
+    fillLetterOptions();
     $seedBtn.style.display = 'none';
   }).catch(err => {
     console.error(err);
     SONGS = SEED.map(s => ({ ...s }));
     rebuildTagCounts();
+    fillLetterOptions();
     toast('Не удалось загрузить базу — показаны локальные данные');
   });
 }
@@ -705,12 +745,14 @@ function filtered() {
   const q = norm($q.value.trim());
   const freq = $freqFilter.value;
   const perf = $perfFilter.value;
+  const letter = $letterFilter.value;
   let list = SONGS.filter(s => {
     if (activeTags.size) {
       for (const t of activeTags) if (!(s.tags || []).includes(t)) return false;
     }
     if (freq && s.frequency !== freq) return false;
     if (perf && s.perfType !== perf) return false;
+    if (letter && surnameLetter(s.composer) !== letter) return false;
     if (!q) return true;
     const hay = norm([s.title, s.composer, s.lyricist, s.key, s.performers, s.programs, s.source, s.note, ...(s.tags || [])].join(' '));
     return q.split(/\s+/).every(w => hay.includes(w));
@@ -827,10 +869,21 @@ function render() {
   });
 }
 
+function syncLetterFilterVisibility() {
+  const show = $sort.value === 'composer';
+  $letterFilter.style.display = show ? '' : 'none';
+  if (!show && $letterFilter.value) {
+    $letterFilter.value = '';
+  }
+}
+
 $q.addEventListener('input', render);
-$sort.addEventListener('change', render);
+$sort.addEventListener('change', () => { syncLetterFilterVisibility(); render(); });
 $freqFilter.addEventListener('change', render);
 $perfFilter.addEventListener('change', render);
+$letterFilter.addEventListener('change', render);
+
+syncLetterFilterVisibility();
 
 // file:// often breaks Firebase — use GitHub Pages URL
 if (location.protocol === 'file:') {
