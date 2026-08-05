@@ -534,8 +534,9 @@
 <main>
   <div class="admin-bar" id="adminBar">
     <span class="hint">Режим редактирования</span>
-    <button type="button" id="addBtn">+ Добавить песню</button>
+    <button type="button" id="addBtn">+ Добавить</button>
     <button type="button" class="secondary" id="seedBtn" style="display:none">Загрузить 95 песен в базу</button>
+    <button type="button" class="secondary" id="renameBtn" title="Один раз: Балашова → Гусева">Исправить фамилию</button>
   </div>
 
   <div class="toolbar">
@@ -555,6 +556,7 @@
     </select>
     <select class="extra-select" id="perfFilter">
       <option value="">Тип: все</option>
+      <option value="__empty__">Тип не указан</option>
       <option value="Соло">Соло</option>
       <option value="Дуэт">Дуэт</option>
       <option value="Трио">Трио</option>
@@ -939,7 +941,62 @@ document.getElementById('seedBtn').onclick = async () => {
 };
 
 
+
+document.getElementById('renameBtn').onclick = async () => {
+  if (!user) return toast('Нужен вход');
+  if (!confirm('Заменить «Балашова» на «Гусева» во всех карточках базы?\\n(в полях: исполнители, примечание и др.)')) return;
+  const btn = document.getElementById('renameBtn');
+  btn.disabled = true;
+  btn.textContent = 'Исправление…';
+  const from = /Балашов[аы]?/gi;
+  const replacer = (s) => {
+    if (!s || typeof s !== 'string') return { v: s, changed: false };
+    const n = s.replace(from, (m) => m.toLowerCase().endsWith('ы') ? 'Гусевы' : 'Гусева');
+    // Светлана Балашова → Светлана Гусева already via Балашова→Гусева
+    return { v: n, changed: n !== s };
+  };
+  const fields = ['performers','note','programs','source','accompaniment','lyricist','composer','title'];
+  try {
+    const snap = await db.collection('songs').get();
+    let updated = 0;
+    let batch = db.batch();
+    let ops = 0;
+    const commits = [];
+    snap.forEach(doc => {
+      const d = doc.data();
+      const patch = {};
+      let any = false;
+      fields.forEach(f => {
+        const r = replacer(d[f] || '');
+        if (r.changed) { patch[f] = r.v; any = true; }
+      });
+      if (any) {
+        batch.update(doc.ref, patch);
+        updated++;
+        ops++;
+        if (ops >= 400) {
+          commits.push(batch.commit());
+          batch = db.batch();
+          ops = 0;
+        }
+      }
+    });
+    if (ops > 0) commits.push(batch.commit());
+    await Promise.all(commits);
+    toast(updated ? ('Исправлено карточек: ' + updated) : 'Совпадений не найдено');
+    await loadSongs();
+    render();
+    btn.style.display = 'none';
+  } catch (e) {
+    console.error(e);
+    toast('Ошибка: ' + e.message);
+    btn.disabled = false;
+    btn.textContent = 'Исправить фамилию';
+  }
+};
+
 document.getElementById('addBtn').onclick = () => openEditor(null);
+
 
 
 function openEditor(song) {
@@ -1077,7 +1134,9 @@ function filtered() {
       for (const t of activeTags) if (!(s.tags || []).includes(t)) return false;
     }
     if (freq && s.frequency !== freq) return false;
-    if (perf && s.perfType !== perf) return false;
+    if (perf === '__empty__') {
+      if (s.perfType && String(s.perfType).trim()) return false;
+    } else if (perf && s.perfType !== perf) return false;
     if (letter && surnameLetter(s.composer) !== letter) return false;
     if (!q) return true;
     const hay = norm([s.title, s.composer, s.lyricist, s.key, s.performers, s.programs, s.source, s.note, ...(s.tags || [])].join(' '));
