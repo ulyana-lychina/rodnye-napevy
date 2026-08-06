@@ -535,8 +535,6 @@
   <div class="admin-bar" id="adminBar">
     <span class="hint">Режим редактирования</span>
     <button type="button" id="addBtn">+ Добавить</button>
-    <button type="button" class="secondary" id="seedBtn" style="display:none">Загрузить 95 песен в базу</button>
-    <button type="button" class="secondary" id="renameBtn" title="Один раз: Балашова → Гусева">Исправить фамилию</button>
   </div>
 
   <div class="toolbar">
@@ -787,7 +785,6 @@ const $perfFilter = document.getElementById('perfFilter');
 const $letterFilter = document.getElementById('letterFilter');
 const $authBtn = document.getElementById('authBtn');
 const $adminBar = document.getElementById('adminBar');
-const $seedBtn = document.getElementById('seedBtn');
 const $toast = document.getElementById('toast');
 
 function toast(msg) {
@@ -824,8 +821,7 @@ function loadSongs() {
       SONGS = SEED.map(s => ({ ...s }));
       rebuildTagCounts();
       fillLetterOptions();
-      $seedBtn.style.display = user ? 'inline-block' : 'none';
-      return;
+            return;
     }
     SONGS = [];
     snap.forEach(doc => {
@@ -857,8 +853,7 @@ function loadSongs() {
     });
     rebuildTagCounts();
     fillLetterOptions();
-    $seedBtn.style.display = 'none';
-  }).catch(err => {
+      }).catch(err => {
     console.error(err);
     SONGS = SEED.map(s => ({ ...s }));
     rebuildTagCounts();
@@ -873,13 +868,11 @@ auth.onAuthStateChanged(u => {
     $authBtn.textContent = 'Выйти';
     $authBtn.classList.add('out');
     $adminBar.classList.add('show');
-    if (!SONGS.length || !SONGS[0].docId) $seedBtn.style.display = 'inline-block';
   } else {
     $authBtn.textContent = 'Войти';
     $authBtn.classList.remove('out');
     $adminBar.classList.remove('show');
-    $seedBtn.style.display = 'none';
-  }
+      }
   render();
 });
 
@@ -908,91 +901,6 @@ document.getElementById('loginSubmit').onclick = () => {
     .catch(() => {
       document.getElementById('loginError').style.display = 'block';
     });
-};
-
-document.getElementById('seedBtn').onclick = async () => {
-  if (!user) return;
-  if (!confirm('Загрузить 95 песен в Firebase? Делается один раз.')) return;
-  $seedBtn.disabled = true;
-  $seedBtn.textContent = 'Загрузка…';
-  try {
-    const batchSize = 400;
-    let batch = db.batch();
-    let n = 0;
-    for (const s of SEED) {
-      const ref = db.collection('songs').doc();
-      batch.set(ref, { ...s, tags: s.tags || [] });
-      n++;
-      if (n % batchSize === 0) {
-        await batch.commit();
-        batch = db.batch();
-      }
-    }
-    if (n % batchSize !== 0) await batch.commit();
-    toast('Песни загружены');
-    await loadSongs();
-    render();
-  } catch (e) {
-    console.error(e);
-    toast('Ошибка загрузки: ' + e.message);
-  }
-  $seedBtn.disabled = false;
-  $seedBtn.textContent = 'Загрузить 95 песен в базу';
-};
-
-
-
-document.getElementById('renameBtn').onclick = async () => {
-  if (!user) return toast('Нужен вход');
-  if (!confirm('Заменить «Балашова» на «Гусева» во всех карточках базы?\\n(в полях: исполнители, примечание и др.)')) return;
-  const btn = document.getElementById('renameBtn');
-  btn.disabled = true;
-  btn.textContent = 'Исправление…';
-  const from = /Балашов[аы]?/gi;
-  const replacer = (s) => {
-    if (!s || typeof s !== 'string') return { v: s, changed: false };
-    const n = s.replace(from, (m) => m.toLowerCase().endsWith('ы') ? 'Гусевы' : 'Гусева');
-    // Светлана Балашова → Светлана Гусева already via Балашова→Гусева
-    return { v: n, changed: n !== s };
-  };
-  const fields = ['performers','note','programs','source','accompaniment','lyricist','composer','title'];
-  try {
-    const snap = await db.collection('songs').get();
-    let updated = 0;
-    let batch = db.batch();
-    let ops = 0;
-    const commits = [];
-    snap.forEach(doc => {
-      const d = doc.data();
-      const patch = {};
-      let any = false;
-      fields.forEach(f => {
-        const r = replacer(d[f] || '');
-        if (r.changed) { patch[f] = r.v; any = true; }
-      });
-      if (any) {
-        batch.update(doc.ref, patch);
-        updated++;
-        ops++;
-        if (ops >= 400) {
-          commits.push(batch.commit());
-          batch = db.batch();
-          ops = 0;
-        }
-      }
-    });
-    if (ops > 0) commits.push(batch.commit());
-    await Promise.all(commits);
-    toast(updated ? ('Исправлено карточек: ' + updated) : 'Совпадений не найдено');
-    await loadSongs();
-    render();
-    btn.style.display = 'none';
-  } catch (e) {
-    console.error(e);
-    toast('Ошибка: ' + e.message);
-    btn.disabled = false;
-    btn.textContent = 'Исправить фамилию';
-  }
 };
 
 document.getElementById('addBtn').onclick = () => openEditor(null);
